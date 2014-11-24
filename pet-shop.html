@@ -1,0 +1,308 @@
+<html>
+<head>
+  <title>Pet Shop World</title>
+</head>
+<body>
+
+<select class="pet-shops">
+  <option>-- Please Select a Pet Shop --</option>
+</select>
+
+<div class="pet-shop">
+  <h3 class="title">Please select a Pet Shop above</h3>
+
+  <div class="cats"></div>
+  <div class="dogs"></div>
+
+  <form class="new-cat"></form>
+  <form class="new-dog"></form>
+</div>
+
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script type="text/javascript">
+var host = "http://pet-shop.api.mks.io"
+// vm stands for view-model. This is the current state of our user interface
+var vm = {
+  shops: [],
+  cats: [],
+  dogs: []
+}
+
+var br = '<br />'
+
+// Reusable utility function
+var findById = function (array, id) {
+  for (var i=0; i < array.length; i++) {
+    var obj = array[i]
+    if (obj.id === id) return obj
+  }
+  return null
+}
+
+// Get all pet shops on page load
+$.get(host + '/shops', function (shops) {
+  vm.shops = shops
+  console.log("Got shops:", shops)
+
+  var $select = $('select.pet-shops')
+  shops.forEach(function(shop) {
+    var $option = $('<option>').text(shop.name).attr('value', shop.id)
+    $select.append($option)
+  })
+})
+
+var activeShop = null
+$('select.pet-shops').on('change', function (e) {
+  var shopId = parseInt( $(this).val() )
+  activeShop = findById(vm.shops, shopId)
+  console.log("Selected:", shopId, activeShop)
+
+  $('.pet-shop h3.title').text(activeShop.name)
+
+  var urlActive = host + '/shops/' + shopId
+
+  // TODO: MAKE GET REQUEST TO GET CATS AND THEN CALL renderCats
+  $.get(urlActive + '/cats', function(cats) {
+    renderCats(cats)
+  })
+
+  // TODO: MAKE GET REQUEST TO GET DOGS AND THEN CALL renderDogs
+  $.get(urlActive + '/dogs', function(dogs) {
+    renderDogs(dogs)
+  })
+
+  // TODO: have a form added to page for adding a new cat to this page
+  renderCatForm() 
+
+  // TODO: have a form added to page for adding a new dog
+  renderDogForm()
+  
+  $('form.new-cat').on('submit', function (e) {
+    e.preventDefault()
+
+    alert("You submitted the form!")
+
+    var requestBody = {}
+    requestBody.name = $('[name=catName]', this).val()
+    requestBody.imageUrl = $('[name=catPic]', this).val()
+
+    var urlCat = urlActive + '/cats'
+    $('form.new-cat .errors').empty()
+    $.post(urlCat, requestBody)
+       .done(function(newCat) {
+       renderCat(newCat)
+      })
+
+      .fail(function(error) {
+        var errorObj = JSON.parse(error.responseText)
+
+        for(var fieldName in errorObj) {
+          var errorText = errorObj[fieldName].join('; ')
+
+          var $errorDiv = $('<div>').addClass('error')
+          $errorDiv.html(fieldName + " - " + errorText)
+
+          var br = $('<br />')
+          $('form.new-cat .errors').append($errorDiv, br)
+        }
+      })
+  })
+
+
+
+  $('form.new-dog').on('submit', function (e) {
+    e.preventDefault()
+
+    alert("You submitted the form!")
+
+    var requestBody = {}
+    requestBody.name = $('[name=dogName]', this).val()
+    requestBody.imageUrl = $('[name=dogPic]', this).val()
+    requestBody.happiness = $('select', this).val()
+
+    var urlDog = urlActive + '/dogs'
+    $('form.new-dog .errors').empty()
+    $.post(urlDog, requestBody)
+      .done(function(newDog) {
+        renderDog(newDog)
+      })
+
+      .fail(function(error) {
+        var errorObj = JSON.parse(error.responseText)
+
+        for(var fieldName in errorObj) {
+          var errorText = errorObj[fieldName].join('; ')
+
+          var $errorDiv = $('<div>').addClass('error')
+          $errorDiv.html(fieldName + " - " + errorText)
+
+          var br = $('<br />')
+          $('form.new-dog .errors').append($errorDiv, br)
+        }
+      })
+
+  })
+
+})
+
+
+//After submitting a new cat or dog, page should update to include it
+
+
+
+
+
+// Upon clicking the "adopt this pet", link should disappear and send a put request to make adopted status true
+$(document).on('click', 'a.adopt', function(e) {
+  e.preventDefault();
+  // console.log('hi')
+  var petID = $(this).data('id').toString()
+  var petType = $(this).parent().parent().attr('class').toString()
+  var shop = $('select.pet-shops').val().toString()
+  // console.log(petID + petType + shop)
+  $.ajax({
+       url: host + '/shops/' + shop + '/' + petType + '/' + petID ,
+       type: "put",
+       dataType: "json",
+       data: { adopted: true }
+  // })
+  // $.put(url, {text:'new text'}, function(result){
+  //    console.log(result);
+  // })
+  })
+  $(this).parent().text("Adopted - Yes!!")
+})
+
+
+var renderCats = function (cats) {
+  // TODO
+  $div = $('div.cats')
+  $div.empty()
+  cats.forEach(function(cat) {
+    renderCat(cat)
+  })
+}
+
+
+
+
+var renderDogs = function (dogs) {
+  // TODO
+
+  $div = $('div.dogs')
+  $div.empty()
+  dogs.forEach(function(dog) {
+    renderDog(dog)
+  })
+}
+
+var renderCatForm = function() {
+
+  $newCat = $('.new-cat')
+  $newCat.empty()
+  $newCat.append('<h3> Put a cat up for adoption: </h3>')
+  $errorC = $('<div>').addClass('errors')
+  $nameLableCat = $('<label>').text("Cat's Name: ")
+  $inputNameCat = $('<input>').attr('type', 'text').attr('name', 'catName')
+
+  $newCat.append($errorC, $nameLableCat, $inputNameCat, br, br)
+
+  $picLabelCat = $('<label>').text("Picture of Cat (url): ")
+  $inputPicCat = $('<input>').attr('type', 'text').attr('name', 'catPic')
+
+  $newCat.append($picLabelCat, $inputPicCat, br, br)
+
+  $submitC = $('<input>').attr('type', 'submit').attr('value', 'Submit Cat')
+  $newCat.append($submitC)
+
+}
+
+var renderDogForm = function() {
+
+  $newDog = $('.new-dog')
+  $newDog.empty()
+  $newDog.append('<h3> Put a dog up for adoption: </h3>')
+  $errorD = $('<div>').addClass('errors')
+  $nameLableDog = $('<label>').text("Dog's Name: ")
+  $inputNameDog = $('<input>').attr('type', 'text').attr('name', 'dogName')
+
+  $newDog.append($errorD, $nameLableDog, $inputNameDog, br, br)
+
+  $picLabelDog = $('<label>').text("Picture of Dog (url): ")
+  $inputPicDog = $('<input>').attr('type', 'text').attr('name', 'dogPic')
+
+  $newDog.append($picLabelDog, $inputPicDog, br, br)
+
+  $happyLabelDog = $('<label>').text("Happiness Level: ")
+  $selectHappy = $('<select>')
+
+  for (var i = 5; i > 0; i--) {
+    $option = $('<option>').text(i)
+    $selectHappy.append($option)
+  }
+
+  $newDog.append($happyLabelDog, $selectHappy, br, br)
+
+  $submitD = $('<input>').attr('type', 'submit').attr('value', 'Submit Dog')
+  $newDog.append($submitD)
+
+}
+
+var renderDog = function(dog) {
+  var $div = $('div.dogs')
+  var $divPet = $('<div>').addClass('pet dog')
+  $div.append($divPet)
+
+  var $divName = $('<div>').addClass('name')
+  $divPet.append($divName)
+
+  $divName.text(dog.name + " (happiness: " + dog.happiness + ")")
+  $img = $('<img>').attr('src', dog.imageUrl)
+  $divPet.append($img)
+
+  $a = $('<a>').addClass('adopt').attr('href', '#').attr('data-id', dog.id).text('Adopt this Pet')
+
+  if (dog.adopted === "true") {
+    $divAdopt = $('<div>').addClass('adopted-status').text("Adopted - Yes !!")
+  } else {
+    $divAdopt = $('<div>').addClass('adopted-status').text("Adopted - No :( ").append($a)
+    }
+  
+  $div.append($divAdopt)
+
+  $br = $('<br />')
+  $div.append($br)
+}
+
+var renderCat = function(cat) {
+  $div = $('div.cats')
+  var $divPet = $('<div>').addClass('pet cat')
+  $div.append($divPet)
+
+  var $divName = $('<div>').addClass('name')
+  $divPet.append($divName)
+
+  $divName.text(cat.name)
+  $img = $('<img>').attr('src', cat.imageUrl)
+  $divPet.append($img)
+
+  $a = $('<a>').addClass('adopt').attr('href', '#').attr('data-id', cat.id).text('Adopt this Pet')
+  
+  if (cat.adopted === "true") {
+    $divAdopt = $('<div>').addClass('adopted-status').text("Adopted - Yes !!")
+  } else {
+    $divAdopt = $('<div>').addClass('adopted-status').text("Adopted - No :( ").append($a)
+    }
+
+  $div.append($divAdopt)
+
+
+  $br = $('<br />')
+  $div.append($br)
+}
+
+</script>
+
+</body>
+</html>
